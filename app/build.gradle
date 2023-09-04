@@ -1,0 +1,75 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "kotlin-kapt"
+    id "org.jetbrains.kotlin.android"
+}
+
+android {
+    namespace "com.zhukovartemvl.sudokusolver"
+
+    compileSdk versions.compileSdk
+
+    ndkVersion "21.3.6528147"
+
+    defaultConfig {
+        applicationId "com.zhukovartemvl.sudokusolver"
+
+        minSdk versions.minSdk
+        targetSdk versions.targetSdk
+
+        versionCode versions.appVersionCode
+        versionName versions.appVersionName
+    }
+
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+        }
+    }
+
+    buildFeatures {
+        compose true
+        buildConfig true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion versions.composeCompiler
+    }
+}
+
+dependencies {
+    implementation "androidx.core:core-ktx:1.9.0"
+
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+
+//    implementation "androidx.activity:activity-ktx:1.8.0-alpha07"
+
+    implementation "androidx.appcompat:appcompat:1.6.1"
+
+    implementation "androidx.lifecycle:lifecycle-livedata-ktx:2.6.0"
+    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.6.0"
+    implementation "androidx.lifecycle:lifecycle-service:2.6.0"
+
+    implementation "androidx.activity:activity-compose:1.6.1"
+    implementation "androidx.compose.ui:ui:1.3.3"
+    implementation "androidx.compose.ui:ui-tooling-preview:1.3.3"
+    implementation "androidx.compose.material:material:1.3.1"
+
+//    implementation "com.github.KuhakuPixel:UberAlles:0.0.2"
+
+    implementation "com.github.iamareebjamal:opencv-android:4.5.1"
+    implementation "cz.adaptech.tesseract4android:tesseract4android:4.5.0"
+}

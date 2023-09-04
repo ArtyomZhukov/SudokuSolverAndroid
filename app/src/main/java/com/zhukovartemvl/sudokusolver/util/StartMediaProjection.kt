@@ -1,0 +1,23 @@
+package com.zhukovartemvl.sudokusolver.util
+
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
+import android.media.projection.MediaProjectionManager
+import androidx.activity.result.contract.ActivityResultContract
+
+class StartMediaProjection : ActivityResultContract<Unit, Intent?>() {
+    override fun createIntent(context: Context, input: Unit): Intent {
+        val mediaProjectionManager = context.getSystemService(MediaProjectionManager::class.java)
+
+        return mediaProjectionManager.createScreenCaptureIntent()
+    }
+
+    override fun parseResult(resultCode: Int, intent: Intent?): Intent? {
+        return if (resultCode != Activity.RESULT_OK) {
+            null
+        } else {
+            intent
+        }
+    }
+}
