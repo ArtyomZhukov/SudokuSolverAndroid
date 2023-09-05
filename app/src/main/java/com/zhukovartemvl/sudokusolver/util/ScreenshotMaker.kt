@@ -46,15 +46,19 @@ object ScreenshotMaker {
             val rowStride = plane.rowStride.toLong()
             val bufferMat = Mat()
 
-            val tempMat = Mat(image.height, image.width, CvType.CV_8UC4, buffer, rowStride)
+            val heightPx = image.height
+            val widthPx = image.width
+
+            val tempMat = Mat(heightPx, widthPx, CvType.CV_8UC4, buffer, rowStride)
             tempMat.copyTo(bufferMat)
 
             val grayscaleMat = Mat()
             Imgproc.cvtColor(bufferMat, grayscaleMat, Imgproc.COLOR_RGBA2GRAY)
 
-
+            bufferMat.release()
             tempMat.release()
             image.close()
+            imageReader.close()
             virtualDisplay.release()
 
             onResult(grayscaleMat)

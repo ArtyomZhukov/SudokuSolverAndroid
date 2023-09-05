@@ -1,5 +1,6 @@
 package com.zhukovartemvl.sudokusolver.component
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.PixelFormat
 import android.view.WindowManager
@@ -10,10 +11,13 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.unit.IntOffset
+import com.zhukovartemvl.sudokusolver.model.Cell
 import com.zhukovartemvl.sudokusolver.model.TargetsParams
+import com.zhukovartemvl.sudokusolver.preferences.SudokuPreferences
 import com.zhukovartemvl.sudokusolver.state.OverlayState
-import kotlin.math.min
+import java.lang.Exception
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 class SudokuSolverOverlayComponent(
@@ -21,9 +25,12 @@ class SudokuSolverOverlayComponent(
     private val overlayState: OverlayState,
     private val numbersTargetState: OverlayState,
     private val stopService: () -> Unit,
-    private val startSolver: (gameFieldParams: TargetsParams, numbersTargetsParams: TargetsParams) -> Unit
+    private val startScanner: (gameFieldParams: TargetsParams, numbersTargetsParams: TargetsParams, statusBarHeight: Int) -> Unit,
+    private val solveSudoku: () -> Unit
 ) {
-    private var sudoku by mutableStateOf(listOf<Int>())
+    private var sudoku by mutableStateOf(listOf<Cell>())
+
+    private val preferences by lazy { SudokuPreferences(context = context) }
 
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
@@ -43,17 +50,26 @@ class SudokuSolverOverlayComponent(
         numbersTargetsOverlay = initNumbersTargetsOverlay()
     }
 
-    fun setSudokuNumbers(sudoku: List<Int>) {
+    fun setSudokuNumbers(sudoku: List<Cell>) {
         this.sudoku = sudoku
     }
 
     private fun initClickTargetOverlay(): OverlayViewHolder {
-        gameFieldStartSize = min(context.resources.displayMetrics.widthPixels, context.resources.displayMetrics.heightPixels)
+        val (startXPosition, startYPosition) = preferences.gameFieldPosition
+
+        val gameFieldSize = preferences.gameFieldSize
+        gameFieldStartSize = if (gameFieldSize != 0) {
+            gameFieldSize
+        } else {
+            min(context.resources.displayMetrics.widthPixels, context.resources.displayMetrics.heightPixels)
+        }
 
         return OverlayViewHolder(
             params = WindowManager.LayoutParams(
                 gameFieldStartSize,
                 gameFieldStartSize,
+                startXPosition,
+                startYPosition,
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT
@@ -88,7 +104,10 @@ class SudokuSolverOverlayComponent(
                             xPosition = numbersTargetsOverlay.params.x,
                             yPosition = numbersTargetsOverlay.params.y
                         )
-                        startSolver(gameFieldParams, numbersTargetsParams)
+                        preferences.gameFieldPosition = gameFieldTargetOverlay.params.x to gameFieldTargetOverlay.params.y
+                        preferences.gameFieldSize = gameFieldTargetOverlay.params.width
+                        preferences.numbersTargetsYPosition = numbersTargetsOverlay.params.y
+                        startScanner(gameFieldParams, numbersTargetsParams, getStatusBarHeight())
                     },
                     onCloseClick = stopService,
                     onCenterHorizontallyClick = {
@@ -105,9 +124,24 @@ class SudokuSolverOverlayComponent(
         }
     }
 
+    @SuppressLint("InternalInsetResource", "DiscouragedApi")
+    private fun getStatusBarHeight(): Int {
+        var result = 0
+        val resourceId: Int = context.resources.getIdentifier("status_bar_height", "dimen", "android")
+        if (resourceId > 0) {
+            result = context.resources.getDimensionPixelSize(resourceId)
+        }
+        return result
+    }
+
     private fun initNumbersTargetsOverlay(): OverlayViewHolder {
         numbersTargetsStartWidth = context.resources.displayMetrics.widthPixels
-        val yStartPos = context.resources.displayMetrics.heightPixels - 300
+
+        val yStartPos = if (preferences.numbersTargetsYPosition != 0) {
+            preferences.numbersTargetsYPosition
+        } else {
+            context.resources.displayMetrics.heightPixels - 300
+        }
 
         numbersTargetState.viewOffset = numbersTargetState.viewOffset.copy(y = yStartPos)
 
@@ -126,9 +160,7 @@ class SudokuSolverOverlayComponent(
             view.setContent {
                 FloatingTargetsView(
                     scanReady = sudoku.isNotEmpty(),
-                    onSolveClick = {
-                        // TODO
-                    },
+                    onSolveClick = solveSudoku,
                     onDrag = { change, dragAmount: Offset ->
                         changePosition(
                             view = view,

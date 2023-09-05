@@ -36,5 +36,49 @@ sealed class Cell(open val index: Int) {
     val endChunkColumnIndex: Int
         get() = startChunkColumnIndex + 2
 
+    // Complex functions
+    fun getNumbersInRow(gameField: Map<Int, Cell>): Set<Int> {
+        val rowStartIndex = rowIndex * 9
+        val rowEndIndex = rowStartIndex + 8
 
+        return buildSet {
+            (rowStartIndex..rowEndIndex).forEach { index ->
+                (gameField[index] as? Number)?.let { cell ->
+                    add(cell.number)
+                }
+            }
+        }
+    }
+
+    fun getNumbersInColumn(gameField: Map<Int, Cell>): Set<Int> {
+        return buildSet {
+            repeat(times = 9) { row ->
+                (gameField[row * 9 + columnIndex] as? Number)?.let { cell ->
+                    add(cell.number)
+                }
+            }
+        }
+    }
+
+    fun getNumbersInChunk(gameField: Map<Int, Cell>): Set<Int> {
+        return buildSet {
+            (startChunkRowIndex..endChunkRowIndex).forEach { row ->
+                (startChunkColumnIndex..endChunkColumnIndex).forEach { column ->
+                    val cellIndex = getCellIndex(rowIndex = row, columnIndex = column)
+                    (gameField[cellIndex] as? Number)?.let { cell ->
+                        add(cell.number)
+                    }
+                }
+            }
+        }
+    }
+
+    fun isValidNewNumberInCell(gameField: Map<Int, Cell>, newNumber: Int): Boolean {
+        val numbers = getNumbersInRow(gameField) + getNumbersInColumn(gameField) + getNumbersInChunk(gameField)
+        return !numbers.contains(newNumber)
+    }
+
+    private fun getCellIndex(rowIndex: Int, columnIndex: Int): Int {
+        return rowIndex * 9 + columnIndex
+    }
 }

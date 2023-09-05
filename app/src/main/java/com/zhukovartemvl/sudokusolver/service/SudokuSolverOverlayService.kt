@@ -1,11 +1,13 @@
 package com.zhukovartemvl.sudokusolver.service
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.GestureDescription
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
+import android.graphics.Path
 import android.view.accessibility.AccessibilityEvent
 import androidx.core.app.NotificationCompat
 import com.zhukovartemvl.sudokusolver.AppActivity
@@ -37,7 +39,8 @@ class SudokuSolverOverlayService : AccessibilityService() {
 
     private val sudokuSolverInteractor = SudokuSolverInteractor()
 
-    private var mediaProjectionIntent: Intent? = AppActivity.mediaProjectionIntent?.clone() as Intent
+    private val mediaProjectionIntent: Intent?
+        get() = AppActivity.mediaProjectionIntent?.clone() as? Intent
 
     override fun onCreate() {
         super.onCreate()
@@ -46,10 +49,15 @@ class SudokuSolverOverlayService : AccessibilityService() {
             overlayState = overlayState,
             numbersTargetState = numbersTargetState,
             stopService = { serviceExit(overlayComponent = overlayComponent) },
-            startSolver = { gameFieldParams: TargetsParams, numbersTargetsParams: TargetsParams ->
+            startScanner = { gameFieldParams: TargetsParams, numbersTargetsParams: TargetsParams, statusBarHeight: Int ->
                 coroutineScope.launch {
-                    sudokuSolverInteractor.setTargets(gameFieldParams = gameFieldParams, numbersTargetsParams = numbersTargetsParams)
+                    sudokuSolverInteractor.setTargets(
+                        gameFieldParams = gameFieldParams,
+                        numbersTargetsParams = numbersTargetsParams,
+                        statusBarHeight = statusBarHeight
+                    )
 
+                    delay(100)
                     overlayComponent.hideOverlays()
 
                     delay(100)
@@ -59,9 +67,14 @@ class SudokuSolverOverlayService : AccessibilityService() {
                             context = applicationContext,
                             mediaProjectionIntent = intent,
                             onResult = { mat ->
-                                val sudoku = sudokuSolverInteractor.scanScreenshot(context = this@SudokuSolverOverlayService, mat = mat)
-                                overlayComponent.setSudokuNumbers(sudoku = sudoku)
-                                overlayComponent.showOverlays()
+                                coroutineScope.launch {
+                                    sudokuSolverInteractor.scanScreenshot(context = this@SudokuSolverOverlayService, mat = mat)
+                                    mat.release()
+
+                                    overlayComponent.setSudokuNumbers(sudoku = sudokuSolverInteractor.sudokuCells)
+                                    delay(50)
+                                    overlayComponent.showOverlays()
+                                }
                             },
                             onFailure = {
                                 overlayComponent.showOverlays()
@@ -69,8 +82,34 @@ class SudokuSolverOverlayService : AccessibilityService() {
                         )
                     }
                 }
+            },
+            solveSudoku = {
+                coroutineScope.launch {
+                    delay(100)
+                    val sudoku = sudokuSolverInteractor.solveSudoku()
+                    overlayComponent.hideOverlays()
+                    delay(50)
+                    sudokuSolverInteractor.startAutoClicker(
+                        sudoku = sudoku,
+                        clickOnTarget = ::makeClickOnPosition
+                    ) {
+                        overlayComponent.setSudokuNumbers(sudoku = listOf())
+                        delay(50)
+                        overlayComponent.showOverlays()
+                    }
+                }
             }
         )
+    }
+
+    private fun makeClickOnPosition(xPos: Int, yPos: Int) {
+        val path = Path()
+        path.moveTo(xPos.toFloat(), yPos.toFloat())
+        val gestureBuilder = GestureDescription.Builder()
+        gestureBuilder.addStroke(
+            GestureDescription.StrokeDescription(path, 0, 1)
+        )
+        dispatchGesture(gestureBuilder.build(), null, null)
     }
 
     override fun onStartCommand(intentOrNull: Intent?, flags: Int, startId: Int): Int {
@@ -81,12 +120,7 @@ class SudokuSolverOverlayService : AccessibilityService() {
                     return START_NOT_STICKY
                 }
                 INTENT_COMMAND_START -> {
-                    // mediaProjectionIntent = intent.getParcelableExtra(Intent.EXTRA_INTENT)
-                    // if (mediaProjectionIntent != null) {
                     overlayComponent.showOverlays()
-                    // } else {
-                    //     serviceExit(overlayComponent = overlayComponent)
-                    // }
                 }
                 else -> Unit
             }

@@ -9,6 +9,7 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.platform.compositionContext
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.findViewTreeLifecycleOwner
 import androidx.lifecycle.findViewTreeViewModelStoreOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
@@ -47,5 +48,5 @@ class OverlayViewHolder(val params: WindowManager.LayoutParams, context: Context
         }
     }
 }
-// TODO move into overlayviewholder
+
 // https://gist.github.com/handstandsam/6ecff2f39da72c0b38c07aa80bbb5a2f

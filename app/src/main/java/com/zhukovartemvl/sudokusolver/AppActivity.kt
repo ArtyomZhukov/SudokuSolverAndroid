@@ -1,14 +1,12 @@
 package com.zhukovartemvl.sudokusolver
 
 import android.content.Intent
-import android.media.projection.MediaProjection
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.launch
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,9 +20,12 @@ import androidx.compose.material.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.lifecycleScope
 import com.zhukovartemvl.sudokusolver.service.SudokuSolverOverlayService
 import com.zhukovartemvl.sudokusolver.ui.theme.SudokuSolverTheme
 import com.zhukovartemvl.sudokusolver.util.StartMediaProjection
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class AppActivity : ComponentActivity() {
 
@@ -47,6 +48,10 @@ class AppActivity : ComponentActivity() {
                         Button(onClick = ::openOverlaySettings) {
                             Text(text = "Open overlay permissions")
                         }
+                        Spacer(modifier = Modifier.height(50.dp))
+                        Button(onClick = ::openAccessibilitySettings) {
+                            Text(text = "Open accessibility permissions")
+                        }
                         Spacer(modifier = Modifier.height(100.dp))
                         Button(onClick = {
                             startMediaProjection.launch()
@@ -64,12 +69,14 @@ class AppActivity : ComponentActivity() {
     }
 
     private fun startSudokuSolverService(mediaProjectionIntent: Intent) {
-        AppActivity.mediaProjectionIntent = mediaProjectionIntent
-        val intent = Intent(this, SudokuSolverOverlayService::class.java).apply {
-            putExtra(INTENT_COMMAND, INTENT_COMMAND_START)
-            // putExtra(Intent.EXTRA_INTENT, mediaProjectionIntent)
+        lifecycleScope.launch {
+            AppActivity.mediaProjectionIntent = mediaProjectionIntent
+            delay(100)
+            val intent = Intent(this@AppActivity, SudokuSolverOverlayService::class.java).apply {
+                putExtra(INTENT_COMMAND, INTENT_COMMAND_START)
+            }
+            startForegroundService(intent)
         }
-        startForegroundService(intent)
     }
 
     private fun stopSudokuSolverService() {
@@ -92,11 +99,11 @@ class AppActivity : ComponentActivity() {
         startActivity(intent)
     }
 
-    // private fun initScreenshotResult() {
-    //     registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-    //         screenshotManager.onActivityResult(REQUEST_CODE, it.resultCode, it.data)
-    //     }
-    // }
+    private fun openAccessibilitySettings() {
+        val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(intent)
+    }
 
     companion object {
         var mediaProjectionIntent: Intent? = null
