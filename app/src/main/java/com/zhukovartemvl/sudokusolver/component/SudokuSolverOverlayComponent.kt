@@ -15,7 +15,6 @@ import com.zhukovartemvl.sudokusolver.model.Cell
 import com.zhukovartemvl.sudokusolver.model.TargetsParams
 import com.zhukovartemvl.sudokusolver.preferences.SudokuPreferences
 import com.zhukovartemvl.sudokusolver.state.OverlayState
-import java.lang.Exception
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt

@@ -44,6 +44,7 @@ object ImageCVScanner {
         }
 
         gameFieldMat.release()
+        numbersMats.forEach { it.release() }
 
         return buildList {
             repeat(times = 81) { index ->

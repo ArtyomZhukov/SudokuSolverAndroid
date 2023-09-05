@@ -74,12 +74,20 @@ class SudokuSolverInteractor {
                 add(index = cell.index, element = cell)
             }
         }
+
+        println()
+        println("--- scanned: $sudokuNumbers")
+        println()
     }
 
     fun solveSudoku(): List<Cell> {
+        return solve(sudokuNumbers)
+    }
+
+    fun solve(numbers: List<Int>): List<Cell> {
         val gameField = mutableMapOf<Int, Cell>()
 
-        sudokuNumbers.forEachIndexed { index, number ->
+        numbers.forEachIndexed { index, number ->
             gameField[index] = if (number == 0) {
                 Cell.Empty(index = index)
             } else {
@@ -109,15 +117,15 @@ class SudokuSolverInteractor {
                 }
             }
 
-            gameField.filter { it.value is Cell.Note }
-                .map { (_, cell) ->
-                    if (cell is Cell.Note) {
-                        val newCell = cell.fillCell(gameField = gameField)
-                        if (checkIsValidNumber(gameField = gameField, newCell = cell)) {
-                            gameField[newCell.index] = newCell
-                        }
-                    }
-                }
+            // gameField.filter { it.value is Cell.Note }
+            //     .map { (_, cell) ->
+            //         if (cell is Cell.Note) {
+            //             val newCell = cell.fillCell(gameField = gameField)
+            //             if (checkIsValidNumber(gameField = gameField, newCell = cell)) {
+            //                 gameField[newCell.index] = newCell
+            //             }
+            //         }
+            //     }
 
             gameField.filter { it.value !is Cell.Number }
                 .map { (_, cell) ->
