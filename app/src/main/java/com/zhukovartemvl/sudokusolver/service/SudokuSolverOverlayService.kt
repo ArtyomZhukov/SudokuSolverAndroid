@@ -28,6 +28,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class SudokuSolverOverlayService : AccessibilityService() {
 
@@ -86,16 +87,20 @@ class SudokuSolverOverlayService : AccessibilityService() {
             solveSudoku = {
                 coroutineScope.launch {
                     delay(100)
-                    val sudoku = sudokuSolverInteractor.solveSudoku()
                     overlayComponent.hideOverlays()
-                    delay(50)
-                    sudokuSolverInteractor.startAutoClicker(
-                        sudoku = sudoku,
-                        clickOnTarget = ::makeClickOnPosition
-                    ) {
-                        overlayComponent.setSudokuNumbers(sudoku = listOf())
+                    withContext(Dispatchers.Default) {
+                        val sudoku = sudokuSolverInteractor.solveSudoku()
                         delay(50)
-                        overlayComponent.showOverlays()
+                        sudokuSolverInteractor.startAutoClicker(
+                            sudoku = sudoku,
+                            clickOnTarget = ::makeClickOnPosition
+                        ) {
+                            withContext(Dispatchers.Main) {
+                                overlayComponent.setSudokuNumbers(sudoku = listOf())
+                                delay(50)
+                                overlayComponent.showOverlays()
+                            }
+                        }
                     }
                 }
             }

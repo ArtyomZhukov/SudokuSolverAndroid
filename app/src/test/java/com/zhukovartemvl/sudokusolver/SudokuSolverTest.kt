@@ -1,12 +1,10 @@
 package com.zhukovartemvl.sudokusolver
 
-import com.zhukovartemvl.sudokusolver.interactor.SudokuSolverInteractor
 import com.zhukovartemvl.sudokusolver.model.Cell
+import com.zhukovartemvl.sudokusolver.util.SudokuSolver
 import org.junit.Test
 
 class SudokuSolverTest {
-
-    private val interactor: SudokuSolverInteractor = SudokuSolverInteractor()
 
     @Test
     fun test1() {
@@ -144,26 +142,15 @@ class SudokuSolverTest {
         )
     }
 
-    // @Test
-    // fun test9() {
-    //     testSolver(
-    //         startValues = listOf(
-    //
-    //         ),
-    //     )
-    // }
-    //
-    // @Test
-    // fun test10() {
-    //     testSolver(
-    //         startValues = listOf(
-    //
-    //         ),
-    //     )
-    // }
-
     private fun testSolver(startValues: List<Int>) {
-        val resultValues = interactor.solve(numbers = startValues)
+        val solvedSudoku = SudokuSolver.solve(sudoku = startValues)
+        val resultValues = solvedSudoku.mapIndexed { index, value ->
+            if (value == 0) {
+                Cell.Empty(index)
+            } else {
+                Cell.Number(index, value)
+            }
+        }
 
         if (resultValues.any { it !is Cell.Number }) {
             println()

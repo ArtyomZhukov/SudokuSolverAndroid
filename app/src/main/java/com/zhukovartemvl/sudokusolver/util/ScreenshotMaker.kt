@@ -16,7 +16,7 @@ import org.opencv.imgproc.Imgproc
 object ScreenshotMaker {
 
     @SuppressLint("WrongConstant")
-    suspend fun makeScreenShot(context: Context, mediaProjectionIntent: Intent, onResult: (Mat) -> Unit, onFailure: ()-> Unit) {
+    suspend fun makeScreenShot(context: Context, mediaProjectionIntent: Intent, onResult: (Mat) -> Unit, onFailure: () -> Unit) {
         val mediaProjectionManager = context.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
 
         val mediaProjection = mediaProjectionManager.getMediaProjection(Activity.RESULT_OK, mediaProjectionIntent)
@@ -39,7 +39,6 @@ object ScreenshotMaker {
         delay(100)
 
         imageReader.acquireLatestImage()?.use { image ->
-
             val plane = image.planes[0]
             val buffer = plane.buffer
 
@@ -59,9 +58,11 @@ object ScreenshotMaker {
             tempMat.release()
             image.close()
             imageReader.close()
-            virtualDisplay.release()
 
             onResult(grayscaleMat)
         } ?: onFailure()
+
+        imageReader.close()
+        virtualDisplay.release()
     }
 }

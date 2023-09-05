@@ -1,11 +1,11 @@
 package com.zhukovartemvl.sudokusolver.interactor
 
 import android.content.Context
-import androidx.annotation.IntRange
 import com.zhukovartemvl.sudokusolver.model.Cell
 import com.zhukovartemvl.sudokusolver.model.ClickTarget
 import com.zhukovartemvl.sudokusolver.model.TargetsParams
 import com.zhukovartemvl.sudokusolver.util.ImageCVScanner
+import com.zhukovartemvl.sudokusolver.util.SudokuSolver
 import kotlinx.coroutines.delay
 import org.opencv.core.Mat
 
@@ -64,6 +64,7 @@ class SudokuSolverInteractor {
 
     fun scanScreenshot(context: Context, mat: Mat) {
         sudokuNumbers = ImageCVScanner.scanMat(context = context, gameFieldMat = mat, gameFieldParams = gameFieldParams)
+        mat.release()
         sudokuCells = buildList {
             sudokuNumbers.forEachIndexed { index, number ->
                 val cell = if (number == 0) {
@@ -81,73 +82,12 @@ class SudokuSolverInteractor {
     }
 
     fun solveSudoku(): List<Cell> {
-        return solve(sudokuNumbers)
-    }
-
-    fun solve(numbers: List<Int>): List<Cell> {
-        val gameField = mutableMapOf<Int, Cell>()
-
-        numbers.forEachIndexed { index, number ->
-            gameField[index] = if (number == 0) {
-                Cell.Empty(index = index)
+        val result = SudokuSolver.solve(sudoku = sudokuNumbers)
+        return result.mapIndexed { index, number ->
+            if (number == 0) {
+                Cell.Empty(index)
             } else {
-                Cell.Number(index = index, number = number, isStartNumber = true)
-            }
-        }
-
-        var changed: Boolean
-        var notChangedTimes = 0
-        do {
-            val gameFieldAtStart = gameField.toMap()
-
-            gameField.filter { it.value is Cell.Empty }
-                .map { (_, cell) ->
-                    if (cell is Cell.Empty) {
-                        val newCell = cell.fillCell(gameField = gameField)
-                        gameField[newCell.index] = newCell
-                    }
-                }
-
-            getCellsInChunks(gameField = gameField).forEach { cellsChunk ->
-                val reformattedChunk = cellsChunk.reformatCellsChunk()
-                reformattedChunk.forEach { cell ->
-                    if (checkIsValidNumber(gameField = gameField, newCell = cell)) {
-                        gameField[cell.index] = cell
-                    }
-                }
-            }
-
-            // gameField.filter { it.value is Cell.Note }
-            //     .map { (_, cell) ->
-            //         if (cell is Cell.Note) {
-            //             val newCell = cell.fillCell(gameField = gameField)
-            //             if (checkIsValidNumber(gameField = gameField, newCell = cell)) {
-            //                 gameField[newCell.index] = newCell
-            //             }
-            //         }
-            //     }
-
-            gameField.filter { it.value !is Cell.Number }
-                .map { (_, cell) ->
-                    val newCell = cell.fillCell(gameField = gameField)
-                    if (checkIsValidNumber(gameField = gameField, newCell = cell)) {
-                        gameField[newCell.index] = newCell
-                    }
-                }
-
-
-            changed = !isGameFieldsEquals(first = gameFieldAtStart, second = gameField.toMap())
-            if (!changed) {
-                notChangedTimes += 1
-            }
-        } while (notChangedTimes <= 3)
-
-        println("---end")
-        println(gameField.toString())
-
-        return buildList {
-            gameField.forEach { (index, cell) ->
-                add(index, cell)
+                Cell.Number(index, number, isStartNumber = sudokuNumbers[index] != 0)
             }
         }
     }
@@ -173,171 +113,5 @@ class SudokuSolverInteractor {
             }
         sudokuCells = listOf()
         onComplete()
-    }
-
-    private fun isGameFieldsEquals(first: Map<Int, Cell>, second: Map<Int, Cell>): Boolean {
-        first.forEach { (firstIndex, firstCell) ->
-            val secondCell = second[firstIndex] ?: return false
-            if (firstCell != secondCell) {
-                return false
-            }
-        }
-        return true
-    }
-
-    private fun checkIsValidNumber(gameField: Map<Int, Cell>, newCell: Cell): Boolean {
-        val currentCell = gameField[newCell.index] ?: return false
-
-        if (currentCell is Cell.Number) {
-            return false
-        }
-
-        if (newCell !is Cell.Number) {
-            return true
-        }
-
-        return newCell.isValidNewNumberInCell(gameField = gameField, newNumber = newCell.number)
-    }
-
-    private fun Cell.Empty.fillCell(gameField: Map<Int, Cell>): Cell {
-        val possibleNumbers = (1..9).toMutableSet()
-
-        possibleNumbers.removeAll(getNumbersInRow(gameField = gameField))
-        if (possibleNumbers.size == 1) {
-            return Cell.Number(index = index, number = possibleNumbers.first())
-        }
-
-        possibleNumbers.removeAll(getNumbersInColumn(gameField = gameField))
-        if (possibleNumbers.size == 1) {
-            return Cell.Number(index = index, number = possibleNumbers.first())
-        }
-
-        possibleNumbers.removeAll(getNumbersInChunk(gameField = gameField))
-        if (possibleNumbers.size == 1) {
-            return Cell.Number(index = index, number = possibleNumbers.first())
-        }
-
-        return Cell.Note(index = index, possibleNumbers = possibleNumbers)
-    }
-
-    private fun Cell.Note.fillCell(gameField: Map<Int, Cell>): Cell {
-        val possibleNumbers = possibleNumbers.toMutableSet()
-
-        possibleNumbers.removeAll(getNumbersInRow(gameField = gameField))
-        if (possibleNumbers.size == 1) {
-            return Cell.Number(index = index, number = possibleNumbers.first())
-        }
-
-        possibleNumbers.removeAll(getNumbersInColumn(gameField = gameField))
-        if (possibleNumbers.size == 1) {
-            return Cell.Number(index = index, number = possibleNumbers.first())
-        }
-
-        possibleNumbers.removeAll(getNumbersInChunk(gameField = gameField))
-        if (possibleNumbers.size == 1) {
-            return Cell.Number(index = index, number = possibleNumbers.first())
-        }
-
-        return Cell.Note(index = index, possibleNumbers = possibleNumbers)
-    }
-
-    private fun List<Cell>.reformatCellsChunk(): List<Cell> {
-        val numbers = this.filterIsInstance<Cell.Number>().toMutableList()
-
-        val intNumbers = numbers.map { it.number }.toSet()
-
-        val notes = this.filterIsInstance<Cell.Note>().map { note ->
-            note.copy(possibleNumbers = note.possibleNumbers - intNumbers)
-        }
-
-        val filteredNotes = buildList {
-            notes.forEach { note ->
-                if (note.possibleNumbers.size == 1) {
-                    numbers.add(Cell.Number(index = note.index, number = note.possibleNumbers.first()))
-                } else {
-                    add(note)
-                }
-            }
-        }.toMutableList()
-
-        if (filteredNotes.isEmpty()) {
-            return numbers
-        }
-
-        findDuplicates(notes = filteredNotes).forEach { duplicateNote ->
-            filteredNotes.forEachIndexed { index, note ->
-                if (note.possibleNumbers != duplicateNote.possibleNumbers) {
-                    val newPossibleNumbers = note.possibleNumbers - duplicateNote.possibleNumbers
-                    filteredNotes[index] = note.copy(possibleNumbers = newPossibleNumbers)
-                }
-            }
-        }
-
-        return buildList {
-            addAll(numbers)
-            addAll(filteredNotes)
-        }
-    }
-
-    private fun Cell.fillCell(gameField: Map<Int, Cell>): Cell {
-        if (this is Cell.Number) {
-            return this
-        }
-        val possibleNumbers = (1..9).toMutableSet()
-
-        possibleNumbers.removeAll(getNumbersInColumn(gameField = gameField))
-        if (possibleNumbers.size == 1) {
-            return Cell.Number(index = index, number = possibleNumbers.first())
-        }
-
-        possibleNumbers.removeAll(getNumbersInRow(gameField = gameField))
-        if (possibleNumbers.size == 1) {
-            return Cell.Number(index = index, number = possibleNumbers.first())
-        }
-
-        possibleNumbers.removeAll(getNumbersInChunk(gameField = gameField))
-        if (possibleNumbers.size == 1) {
-            return Cell.Number(index = index, number = possibleNumbers.first())
-        }
-
-        return if (this is Cell.Note) {
-            val numbers = if (this.possibleNumbers.size > possibleNumbers.size) possibleNumbers else this.possibleNumbers
-            Cell.Note(index = index, possibleNumbers = numbers)
-        } else {
-            Cell.Note(index = index, possibleNumbers = possibleNumbers)
-        }
-    }
-
-    private fun getCellsInChunks(gameField: Map<Int, Cell>): List<List<Cell>> {
-        return buildList {
-            for (row in 0 until 9 step 3) {
-                for (column in 0 until 9 step 3) {
-                    val chunk = mutableListOf<Cell>()
-
-                    for (rowOffset in 0 until 3) {
-                        for (colOffset in 0 until 3) {
-                            val index = (row + rowOffset) * 9 + column + colOffset
-                            gameField[index]?.let { cell ->
-                                chunk.add(cell)
-                            }
-                        }
-                    }
-                    add(chunk)
-                }
-            }
-        }
-    }
-
-    private fun findDuplicates(notes: List<Cell.Note>): List<Cell.Note> {
-        return buildList {
-            val numberCount = mutableMapOf<Set<Int>, Int>()
-            notes.forEach { note ->
-                val count = numberCount.getOrDefault(note.possibleNumbers, 0)
-                if (count == 1) {
-                    add(note)
-                }
-                numberCount[note.possibleNumbers] = count + 1
-            }
-        }
     }
 }
