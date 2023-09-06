@@ -5,8 +5,4 @@ data class TargetsParams(
     val height: Int,
     val xPosition: Int,
     val yPosition: Int
-) {
-    companion object {
-        val EMPTY = TargetsParams(width = 0, height = 0, xPosition = 0, yPosition = 0)
-    }
-}
+)

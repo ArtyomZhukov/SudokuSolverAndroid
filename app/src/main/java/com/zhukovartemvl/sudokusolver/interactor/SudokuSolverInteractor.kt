@@ -80,10 +80,6 @@ class SudokuSolverInteractor {
                 add(index = cell.index, element = cell)
             }
         }
-
-        println()
-        println("--- scanned: $sudokuNumbers")
-        println()
     }
 
     fun solveSudoku(): List<Cell> {
