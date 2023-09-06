@@ -72,7 +72,6 @@ object ImageCVScanner {
     }
 
     private fun loadNumbersMats(context: Context): List<Mat> {
-
         return buildList {
             val assets = context.assets
             SudokuNumber.values().forEach { number ->
