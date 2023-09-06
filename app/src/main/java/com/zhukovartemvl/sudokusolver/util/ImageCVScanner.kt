@@ -1,7 +1,6 @@
 package com.zhukovartemvl.sudokusolver.util
 
 import android.content.Context
-import androidx.compose.material.icons.materialIcon
 import com.zhukovartemvl.sudokusolver.model.Match
 import com.zhukovartemvl.sudokusolver.model.Region
 import com.zhukovartemvl.sudokusolver.model.SudokuNumber
@@ -66,33 +65,29 @@ object ImageCVScanner {
 
         // Вычисляем номер строки и столбца
         val row = (point.y * 9) / rectHeight + 1
-        val col = (point.x * 9) / rectWidth + 1
+        val column = (point.x * 9) / rectWidth + 1
 
         // Вычисляем номер ячейки
-        return (row - 1) * 9 + col - 1
+        return (row - 1) * 9 + column - 1
     }
 
     private fun loadNumbersMats(context: Context): List<Mat> {
-        val assets = context.assets
 
-        val numbers = arrayListOf<Mat>()
-
-        SudokuNumber.values().forEachIndexed { index, number ->
-            assets.open("numbers/${number.fileName}").use { inputStream ->
-                numbers.add(makeMat(stream = inputStream, isColor = false))
+        return buildList {
+            val assets = context.assets
+            SudokuNumber.values().forEach { number ->
+                assets.open("numbers/${number.fileName}").use { inputStream ->
+                    add(makeMat(stream = inputStream))
+                }
             }
         }
-        return numbers
     }
 
-    private fun makeMat(stream: InputStream, isColor: Boolean): Mat {
+    private fun makeMat(stream: InputStream): Mat {
         val byteArray = stream.readBytes()
 
         return MatOfByte(*byteArray).use { matOfByte ->
-            Imgcodecs.imdecode(
-                matOfByte,
-                if (isColor) Imgcodecs.IMREAD_COLOR else Imgcodecs.IMREAD_GRAYSCALE
-            )
+            Imgcodecs.imdecode(matOfByte, Imgcodecs.IMREAD_GRAYSCALE)
         }
     }
 

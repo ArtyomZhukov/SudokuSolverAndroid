@@ -24,6 +24,7 @@ class SudokuSolverOverlayComponent(
     val context: Context,
     private val overlayState: OverlayState,
     private val numbersTargetState: OverlayState,
+    private val floatingButtonState: OverlayState,
     private val stopService: () -> Unit,
     private val startScanner: (gameFieldParams: TargetsParams, numbersTargetsParams: TargetsParams, statusBarHeight: Int) -> Unit,
     private val solveSudoku: () -> Unit,
@@ -38,18 +39,16 @@ class SudokuSolverOverlayComponent(
     private val screenWidthPx = context.resources.displayMetrics.widthPixels
     private val screenHeightPx = context.resources.displayMetrics.heightPixels
 
-    private val gameFieldTargetOverlay: OverlayViewHolder
-    private val numbersTargetsOverlay: OverlayViewHolder
+    private val gameFieldTargetOverlay: OverlayViewHolder = initClickTargetOverlay()
+    private val numbersTargetsOverlay: OverlayViewHolder = initNumbersTargetsOverlay()
+    private val floatingButtonOverlay: OverlayViewHolder = initFloatingButtonOverlay()
 
     private var isOverlayShowing = false
 
+    private var isHidingMode = false
+
     private var gameFieldStartSize = 0
     private var numbersTargetsStartWidth = 0
-
-    init {
-        gameFieldTargetOverlay = initClickTargetOverlay()
-        numbersTargetsOverlay = initNumbersTargetsOverlay()
-    }
 
     fun setSudokuNumbers(sudoku: List<Cell>) {
         this.sudoku = sudoku
@@ -96,6 +95,7 @@ class SudokuSolverOverlayComponent(
                         val (gameFieldParams, numbersTargetsParams) = getParams()
                         startScanner(gameFieldParams, numbersTargetsParams, getStatusBarHeight())
                     },
+                    onHideClick = ::switchVisibility,
                     onCloseClick = stopService,
                     onCenterHorizontallyClick = {
                         centerView(view = view, params = params, overlayState = overlayState)
@@ -188,6 +188,40 @@ class SudokuSolverOverlayComponent(
         }
     }
 
+    private fun initFloatingButtonOverlay(): OverlayViewHolder {
+        val yStartPos = context.resources.displayMetrics.heightPixels / 2
+
+        floatingButtonState.viewOffset = floatingButtonState.viewOffset.copy(y = yStartPos)
+
+        return OverlayViewHolder(
+            params = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                0,
+                yStartPos,
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                PixelFormat.TRANSLUCENT
+            ),
+            context = context
+        ).apply {
+            view.setContent {
+                FloatingButtonView(
+                    onShowClick = ::switchVisibility,
+                    onDrag = { change, dragAmount: Offset ->
+                        changePosition(
+                            view = view,
+                            params = params,
+                            overlayState = floatingButtonState,
+                            change = change,
+                            dragAmount = dragAmount
+                        )
+                    }
+                )
+            }
+        }
+    }
+
     private fun changeScale(view: ComposeView, params: WindowManager.LayoutParams, scaleChange: Float, onlyWidth: Boolean = false) {
         params.width = min(gameFieldStartSize, max((params.width * scaleChange).toInt(), 700))
         if (!onlyWidth) {
@@ -251,9 +285,25 @@ class SudokuSolverOverlayComponent(
         isOverlayShowing = false
     }
 
+    private fun switchVisibility() {
+        isHidingMode = !isHidingMode
+        if (isHidingMode) {
+            windowManager.removeView(gameFieldTargetOverlay.view)
+            windowManager.removeView(numbersTargetsOverlay.view)
+
+            windowManager.addView(floatingButtonOverlay.view, floatingButtonOverlay.params)
+        } else {
+            windowManager.removeView(floatingButtonOverlay.view)
+
+            windowManager.addView(gameFieldTargetOverlay.view, gameFieldTargetOverlay.params)
+            windowManager.addView(numbersTargetsOverlay.view, numbersTargetsOverlay.params)
+        }
+    }
+
     fun removeOverlays() {
         windowManager.removeView(gameFieldTargetOverlay.view)
         windowManager.removeView(numbersTargetsOverlay.view)
+        windowManager.removeView(floatingButtonOverlay.view)
 
         overlayState.viewOffset = IntOffset.Zero
         numbersTargetState.viewOffset = IntOffset.Zero
@@ -262,7 +312,9 @@ class SudokuSolverOverlayComponent(
 
         gameFieldTargetOverlay.view.disposeComposition()
         numbersTargetsOverlay.view.disposeComposition()
+        floatingButtonOverlay.view.disposeComposition()
 
         isOverlayShowing = false
+        isHidingMode = false
     }
 }

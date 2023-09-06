@@ -19,6 +19,7 @@ import androidx.compose.material.IconButton
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +41,7 @@ fun FloatingWindowView(
     onDrag: (change: PointerInputChange, dragAmount: Offset) -> Unit,
     onScaleChange: (scale: Float) -> Unit,
     onScanClick: () -> Unit,
+    onHideClick: () -> Unit,
     onCloseClick: () -> Unit,
     onCenterHorizontallyClick: () -> Unit,
     onMinusZoomClick: () -> Unit,
@@ -69,6 +71,13 @@ fun FloatingWindowView(
             }
             .transformable(state = state),
     ) {
+        IconButton(
+            modifier = Modifier.align(alignment = Alignment.TopStart),
+            onClick = onHideClick
+        ) {
+            Icon(imageVector = Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Color.Blue)
+        }
+
         IconButton(
             modifier = Modifier.align(alignment = Alignment.TopEnd),
             onClick = onCloseClick

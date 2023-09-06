@@ -41,6 +41,7 @@ class SudokuSolverOverlayService : AccessibilityService() {
     private lateinit var overlayComponent: SudokuSolverOverlayComponent
     private val overlayState = OverlayState()
     private val numbersTargetState = OverlayState()
+    private val floatingButtonState = OverlayState()
 
     private val sudokuSolverInteractor = SudokuSolverInteractor()
 
@@ -61,11 +62,11 @@ class SudokuSolverOverlayService : AccessibilityService() {
             context = this,
             overlayState = overlayState,
             numbersTargetState = numbersTargetState,
+            floatingButtonState = floatingButtonState,
             stopService = { serviceExit(overlayComponent = overlayComponent) },
             startScanner = { gameFieldParams: TargetsParams, numbersTargetsParams: TargetsParams, statusBarHeight: Int ->
                 startScanner(gameFieldParams = gameFieldParams, numbersTargetsParams = numbersTargetsParams, statusBarHeight = statusBarHeight) {
                     overlayComponent.setSudokuNumbers(sudoku = sudokuSolverInteractor.sudokuCells)
-                    delay(50)
                     overlayComponent.showOverlays()
                 }
             },
@@ -90,11 +91,10 @@ class SudokuSolverOverlayService : AccessibilityService() {
                 numbersTargetsParams = numbersTargetsParams,
                 statusBarHeight = statusBarHeight
             )
-
-            delay(100)
+            delay(50)
             overlayComponent.hideOverlays()
+            delay(50)
 
-            delay(100)
             val intent = mediaProjectionIntent
             if (intent != null && serviceHandler != null) {
                 ScreenshotMaker.makeScreenShot(
@@ -115,18 +115,16 @@ class SudokuSolverOverlayService : AccessibilityService() {
 
     private fun solveSudoku() {
         coroutineScope.launch {
-            delay(50)
+            delay(10)
             overlayComponent.hideOverlays()
             withContext(Dispatchers.Default) {
                 val sudoku = sudokuSolverInteractor.solveSudoku()
-                delay(50)
                 sudokuSolverInteractor.startAutoClicker(
                     sudoku = sudoku,
                     clickOnTarget = ::makeClickOnPosition
                 ) {
                     withContext(Dispatchers.Main) {
                         overlayComponent.setSudokuNumbers(sudoku = listOf())
-                        delay(50)
                         overlayComponent.showOverlays()
                     }
                 }
