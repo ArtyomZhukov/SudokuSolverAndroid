@@ -8,6 +8,10 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
 import android.graphics.Path
+import android.os.Handler
+import android.os.HandlerThread
+import android.os.Looper
+import android.os.Process
 import android.view.accessibility.AccessibilityEvent
 import androidx.core.app.NotificationCompat
 import com.zhukovartemvl.sudokusolver.AppActivity
@@ -43,68 +47,91 @@ class SudokuSolverOverlayService : AccessibilityService() {
     private val mediaProjectionIntent: Intent?
         get() = AppActivity.mediaProjectionIntent?.clone() as? Intent
 
+    private var serviceLooper: Looper? = null
+    private var serviceHandler: Handler? = null
+
     override fun onCreate() {
         super.onCreate()
+        HandlerThread("Service", Process.THREAD_PRIORITY_BACKGROUND).apply {
+            start()
+            serviceLooper = looper
+            serviceHandler = Handler(looper)
+        }
         overlayComponent = SudokuSolverOverlayComponent(
             context = this,
             overlayState = overlayState,
             numbersTargetState = numbersTargetState,
             stopService = { serviceExit(overlayComponent = overlayComponent) },
             startScanner = { gameFieldParams: TargetsParams, numbersTargetsParams: TargetsParams, statusBarHeight: Int ->
-                coroutineScope.launch {
-                    sudokuSolverInteractor.setTargets(
-                        gameFieldParams = gameFieldParams,
-                        numbersTargetsParams = numbersTargetsParams,
-                        statusBarHeight = statusBarHeight
-                    )
-
-                    delay(100)
-                    overlayComponent.hideOverlays()
-
-                    delay(100)
-                    val intent = mediaProjectionIntent
-                    if (intent != null) {
-                        ScreenshotMaker.makeScreenShot(
-                            context = applicationContext,
-                            mediaProjectionIntent = intent,
-                            onResult = { mat ->
-                                coroutineScope.launch {
-                                    sudokuSolverInteractor.scanScreenshot(context = this@SudokuSolverOverlayService, mat = mat)
-                                    mat.release()
-
-                                    overlayComponent.setSudokuNumbers(sudoku = sudokuSolverInteractor.sudokuCells)
-                                    delay(50)
-                                    overlayComponent.showOverlays()
-                                }
-                            },
-                            onFailure = {
-                                overlayComponent.showOverlays()
-                            }
-                        )
-                    }
+                startScanner(gameFieldParams = gameFieldParams, numbersTargetsParams = numbersTargetsParams, statusBarHeight = statusBarHeight) {
+                    overlayComponent.setSudokuNumbers(sudoku = sudokuSolverInteractor.sudokuCells)
+                    delay(50)
+                    overlayComponent.showOverlays()
                 }
             },
-            solveSudoku = {
-                coroutineScope.launch {
-                    delay(100)
-                    overlayComponent.hideOverlays()
-                    withContext(Dispatchers.Default) {
-                        val sudoku = sudokuSolverInteractor.solveSudoku()
-                        delay(50)
-                        sudokuSolverInteractor.startAutoClicker(
-                            sudoku = sudoku,
-                            clickOnTarget = ::makeClickOnPosition
-                        ) {
-                            withContext(Dispatchers.Main) {
-                                overlayComponent.setSudokuNumbers(sudoku = listOf())
-                                delay(50)
-                                overlayComponent.showOverlays()
-                            }
-                        }
-                    }
+            solveSudoku = ::solveSudoku,
+            feelingLucky = { gameFieldParams: TargetsParams, numbersTargetsParams: TargetsParams, statusBarHeight: Int ->
+                startScanner(gameFieldParams = gameFieldParams, numbersTargetsParams = numbersTargetsParams, statusBarHeight = statusBarHeight) {
+                    solveSudoku()
                 }
             }
         )
+    }
+
+    private fun startScanner(
+        gameFieldParams: TargetsParams,
+        numbersTargetsParams: TargetsParams,
+        statusBarHeight: Int,
+        onResult: suspend () -> Unit
+    ) {
+        coroutineScope.launch {
+            sudokuSolverInteractor.setTargets(
+                gameFieldParams = gameFieldParams,
+                numbersTargetsParams = numbersTargetsParams,
+                statusBarHeight = statusBarHeight
+            )
+
+            delay(100)
+            overlayComponent.hideOverlays()
+
+            delay(100)
+            val intent = mediaProjectionIntent
+            if (intent != null && serviceHandler != null) {
+                ScreenshotMaker.makeScreenShot(
+                    context = applicationContext,
+                    mediaProjectionIntent = intent,
+                    serviceHandler = serviceHandler ?: throw Exception("serviceHandler must be not null!"),
+                    onResult = { mat ->
+                        coroutineScope.launch {
+                            sudokuSolverInteractor.scanScreenshot(context = this@SudokuSolverOverlayService, mat = mat)
+                            mat.release()
+                            onResult()
+                        }
+                    }
+                )
+            }
+        }
+    }
+
+    private fun solveSudoku() {
+        coroutineScope.launch {
+            delay(50)
+            overlayComponent.hideOverlays()
+            withContext(Dispatchers.Default) {
+                val sudoku = sudokuSolverInteractor.solveSudoku()
+                delay(50)
+                sudokuSolverInteractor.startAutoClicker(
+                    sudoku = sudoku,
+                    clickOnTarget = ::makeClickOnPosition
+                ) {
+                    withContext(Dispatchers.Main) {
+                        overlayComponent.setSudokuNumbers(sudoku = listOf())
+                        delay(50)
+                        overlayComponent.showOverlays()
+                    }
+                }
+            }
+        }
     }
 
     private fun makeClickOnPosition(xPos: Int, yPos: Int) {
@@ -138,11 +165,10 @@ class SudokuSolverOverlayService : AccessibilityService() {
     override fun onDestroy() {
         super.onDestroy()
         coroutineScope.cancel()
+        sudokuSolverInteractor.clear()
     }
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-
-    }
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) = Unit
 
     override fun onInterrupt() = Unit
 

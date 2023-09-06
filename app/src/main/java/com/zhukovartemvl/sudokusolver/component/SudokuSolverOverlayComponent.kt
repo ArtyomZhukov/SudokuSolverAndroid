@@ -26,7 +26,8 @@ class SudokuSolverOverlayComponent(
     private val numbersTargetState: OverlayState,
     private val stopService: () -> Unit,
     private val startScanner: (gameFieldParams: TargetsParams, numbersTargetsParams: TargetsParams, statusBarHeight: Int) -> Unit,
-    private val solveSudoku: () -> Unit
+    private val solveSudoku: () -> Unit,
+    private val feelingLucky: (gameFieldParams: TargetsParams, numbersTargetsParams: TargetsParams, statusBarHeight: Int) -> Unit
 ) {
     private var sudoku by mutableStateOf(listOf<Cell>())
 
@@ -92,21 +93,7 @@ class SudokuSolverOverlayComponent(
                         changeScale(view = view, params = params, scaleChange = scaleChange)
                     },
                     onScanClick = {
-                        val gameFieldParams = TargetsParams(
-                            width = gameFieldTargetOverlay.params.width,
-                            height = gameFieldTargetOverlay.params.height,
-                            xPosition = gameFieldTargetOverlay.params.x,
-                            yPosition = gameFieldTargetOverlay.params.y
-                        )
-                        val numbersTargetsParams = TargetsParams(
-                            width = numbersTargetsOverlay.params.width,
-                            height = numbersTargetsOverlay.params.height,
-                            xPosition = numbersTargetsOverlay.params.x,
-                            yPosition = numbersTargetsOverlay.params.y
-                        )
-                        preferences.gameFieldPosition = gameFieldTargetOverlay.params.x to gameFieldTargetOverlay.params.y
-                        preferences.gameFieldSize = gameFieldTargetOverlay.params.width
-                        preferences.numbersTargetsYPosition = numbersTargetsOverlay.params.y
+                        val (gameFieldParams, numbersTargetsParams) = getParams()
                         startScanner(gameFieldParams, numbersTargetsParams, getStatusBarHeight())
                     },
                     onCloseClick = stopService,
@@ -122,6 +109,25 @@ class SudokuSolverOverlayComponent(
                 )
             }
         }
+    }
+
+    private fun getParams(): Pair<TargetsParams, TargetsParams> {
+        val gameFieldParams = TargetsParams(
+            width = gameFieldTargetOverlay.params.width,
+            height = gameFieldTargetOverlay.params.height,
+            xPosition = gameFieldTargetOverlay.params.x,
+            yPosition = gameFieldTargetOverlay.params.y
+        )
+        val numbersTargetsParams = TargetsParams(
+            width = numbersTargetsOverlay.params.width,
+            height = numbersTargetsOverlay.params.height,
+            xPosition = numbersTargetsOverlay.params.x,
+            yPosition = numbersTargetsOverlay.params.y
+        )
+        preferences.gameFieldPosition = gameFieldTargetOverlay.params.x to gameFieldTargetOverlay.params.y
+        preferences.gameFieldSize = gameFieldTargetOverlay.params.width
+        preferences.numbersTargetsYPosition = numbersTargetsOverlay.params.y
+        return gameFieldParams to numbersTargetsParams
     }
 
     @SuppressLint("InternalInsetResource", "DiscouragedApi")
@@ -161,6 +167,10 @@ class SudokuSolverOverlayComponent(
                 FloatingTargetsView(
                     scanReady = sudoku.isNotEmpty(),
                     onSolveClick = solveSudoku,
+                    onFeelingLuckyClick = {
+                        val (gameFieldParams, numbersTargetsParams) = getParams()
+                        feelingLucky(gameFieldParams, numbersTargetsParams, getStatusBarHeight())
+                    },
                     onDrag = { change, dragAmount: Offset ->
                         changePosition(
                             view = view,

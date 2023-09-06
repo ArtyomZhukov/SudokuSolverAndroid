@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 fun FloatingTargetsView(
     scanReady: Boolean = false,
     onSolveClick: () -> Unit,
+    onFeelingLuckyClick: () -> Unit,
     onDrag: (change: PointerInputChange, dragAmount: Offset) -> Unit,
     onScaleChange: (scale: Float) -> Unit
 ) {
@@ -67,6 +68,14 @@ fun FloatingTargetsView(
                 onClick = onSolveClick
             ) {
                 Text(text = "Solve", color = Color.White)
+            }
+        } else {
+            Button(
+                modifier = Modifier.align(alignment = Alignment.Center),
+                colors = ButtonDefaults.buttonColors(backgroundColor = Color.Blue),
+                onClick = onFeelingLuckyClick
+            ) {
+                Text(text = "Feeling lucky", color = Color.White)
             }
         }
     }

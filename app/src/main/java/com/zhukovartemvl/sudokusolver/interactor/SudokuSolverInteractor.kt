@@ -21,6 +21,11 @@ class SudokuSolverInteractor {
     var sudokuCells: List<Cell> = listOf()
         private set
 
+    fun clear() {
+        sudokuNumbers = listOf()
+        sudokuCells = listOf()
+    }
+
     fun setTargets(gameFieldParams: TargetsParams, numbersTargetsParams: TargetsParams, statusBarHeight: Int) {
         this.gameFieldParams = gameFieldParams
 
@@ -99,16 +104,16 @@ class SudokuSolverInteractor {
             .groupBy { it.number }
             .forEach { (number, cells) ->
                 if (number != currentNumber) {
-                    delay(100)
+                    delay(2)
                     val target = numbersTargets[number - 1]
                     currentNumber = number
                     clickOnTarget(target.xPosition, target.yPosition)
-                    delay(100)
+                    delay(2)
                 }
                 cells.forEach { cell ->
                     val target = gameFieldTargets[cell.index]
                     clickOnTarget(target.xPosition, target.yPosition)
-                    delay(30)
+                    delay(2)
                 }
             }
         sudokuCells = listOf()
