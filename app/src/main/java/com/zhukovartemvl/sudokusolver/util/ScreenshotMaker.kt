@@ -64,5 +64,6 @@ object ScreenshotMaker {
 
         imageReader.close()
         virtualDisplay.release()
+        mediaProjection.stop()
     }
 }
