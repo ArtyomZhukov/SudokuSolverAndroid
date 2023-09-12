@@ -18,9 +18,6 @@ internal class ServiceLifecycleOwner : SavedStateRegistryOwner {
     private var lifecycleRegistry: LifecycleRegistry = LifecycleRegistry(this)
     private var savedStateRegistryController: SavedStateRegistryController = SavedStateRegistryController.create(this)
 
-    /**
-     * @return True if the Lifecycle has been initialized.
-     */
     val isInitialized: Boolean
         get() = true
 

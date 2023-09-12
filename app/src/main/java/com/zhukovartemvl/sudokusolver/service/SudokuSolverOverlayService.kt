@@ -1,52 +1,56 @@
 package com.zhukovartemvl.sudokusolver.service
 
-import android.accessibilityservice.AccessibilityService
-import android.accessibilityservice.GestureDescription
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.Service
 import android.content.Intent
-import android.graphics.Path
+import android.os.Binder
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
 import android.os.Process
-import android.view.accessibility.AccessibilityEvent
+import androidx.compose.ui.unit.IntOffset
 import androidx.core.app.NotificationCompat
-import com.zhukovartemvl.sudokusolver.AppActivity
 import com.zhukovartemvl.sudokusolver.INTENT_COMMAND
 import com.zhukovartemvl.sudokusolver.INTENT_COMMAND_EXIT
 import com.zhukovartemvl.sudokusolver.INTENT_COMMAND_START
 import com.zhukovartemvl.sudokusolver.REQUEST_CODE_EXIT_COUNTDOWN
 import com.zhukovartemvl.sudokusolver.SUDOKU_SOLVER_SERVICE_NOTIFICATION_CHANNEL
 import com.zhukovartemvl.sudokusolver.SUDOKU_SOLVER_SERVICE_NOTIFICATION_ID
-import com.zhukovartemvl.sudokusolver.component.SudokuSolverOverlayComponent
-import com.zhukovartemvl.sudokusolver.interactor.SudokuSolverInteractor
-import com.zhukovartemvl.sudokusolver.model.TargetsParams
-import com.zhukovartemvl.sudokusolver.service.receiver.ExitReceiver
-import com.zhukovartemvl.sudokusolver.state.OverlayState
-import com.zhukovartemvl.sudokusolver.util.ScreenshotMaker
+import com.zhukovartemvl.sudokusolver.domain.SudokuSolverInteractor
+import com.zhukovartemvl.sudokusolver.domain.model.TargetsParams
+import com.zhukovartemvl.sudokusolver.preferences.SudokuPreferences
+import com.zhukovartemvl.sudokusolver.receiver.ExitServiceReceiver
+import com.zhukovartemvl.sudokusolver.service.component.SudokuSolverOverlayComponent
+import com.zhukovartemvl.sudokusolver.tools.ImageCVScanner
+import com.zhukovartemvl.sudokusolver.tools.ScreenshotMaker
+import com.zhukovartemvl.sudokusolver.tools.SudokuSolver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.koin.android.ext.android.inject
 
-class SudokuSolverOverlayService : AccessibilityService() {
+class SudokuSolverOverlayService : Service() {
 
-    private var coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.Main)
+    private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    private val screenshotMaker: ScreenshotMaker by inject()
+    private val imageCVScanner: ImageCVScanner by inject()
+
+    private val preferences: SudokuPreferences by inject()
+
+    private val serviceState: MutableStateFlow<SudokuSolverServiceState> = MutableStateFlow(SudokuSolverServiceState())
 
     private lateinit var overlayComponent: SudokuSolverOverlayComponent
-    private val overlayState = OverlayState()
-    private val numbersTargetState = OverlayState()
-    private val floatingButtonState = OverlayState()
 
     private val sudokuSolverInteractor = SudokuSolverInteractor()
-
-    private val mediaProjectionIntent: Intent?
-        get() = AppActivity.mediaProjectionIntent?.clone() as? Intent
 
     private var serviceLooper: Looper? = null
     private var serviceHandler: Handler? = null
@@ -58,26 +62,68 @@ class SudokuSolverOverlayService : AccessibilityService() {
             serviceLooper = looper
             serviceHandler = Handler(looper)
         }
+        initOverlayPositions()
         overlayComponent = SudokuSolverOverlayComponent(
             context = this,
-            overlayState = overlayState,
-            numbersTargetState = numbersTargetState,
-            floatingButtonState = floatingButtonState,
-            stopService = { serviceExit(overlayComponent = overlayComponent) },
-            startScanner = { gameFieldParams: TargetsParams, numbersTargetsParams: TargetsParams, statusBarHeight: Int ->
-                startScanner(gameFieldParams = gameFieldParams, numbersTargetsParams = numbersTargetsParams, statusBarHeight = statusBarHeight) {
-                    overlayComponent.setSudokuNumbers(sudoku = sudokuSolverInteractor.sudokuCells)
-                    overlayComponent.showOverlays()
-                }
-            },
-            solveSudoku = ::solveSudoku,
-            feelingLucky = { gameFieldParams: TargetsParams, numbersTargetsParams: TargetsParams, statusBarHeight: Int ->
-                startScanner(gameFieldParams = gameFieldParams, numbersTargetsParams = numbersTargetsParams, statusBarHeight = statusBarHeight) {
-                    solveSudoku()
-                }
-            }
+            coroutineScope = coroutineScope,
+            state = serviceState,
+            onFeelingLuckyClick = ::feelingLucky,
+            onSolveSudokuClick = ::solveSudoku,
+            onStartScannerClick = ::startScanner,
+            onStopServiceClick = { serviceExit(overlayComponent = overlayComponent) },
+            onHideClick = { serviceState.value = serviceState.value.copy(overlayState = ServiceOverlayState.FloatingButton) },
+            onShowClick = { serviceState.value = serviceState.value.copy(overlayState = ServiceOverlayState.Default) },
+            onFloatingWindowPositionChange = { offset -> serviceState.value = serviceState.value.copy(gameFieldOverlayOffset = offset) },
+            onNumbersTargetsPositionChange = { offset -> serviceState.value = serviceState.value.copy(numbersTargetOffset = offset) },
+            onFloatingButtonPositionChange = { offset -> serviceState.value = serviceState.value.copy(floatingButtonOffset = offset) },
         )
     }
+
+    private fun startScanner(gameFieldParams: TargetsParams, numbersTargetsParams: TargetsParams, statusBarHeight: Int) {
+        startScanner(gameFieldParams = gameFieldParams, numbersTargetsParams = numbersTargetsParams, statusBarHeight = statusBarHeight) {
+            serviceState.value = serviceState.value.copy(overlayState = ServiceOverlayState.Default)
+        }
+    }
+
+    private fun feelingLucky(gameFieldParams: TargetsParams, numbersTargetsParams: TargetsParams, statusBarHeight: Int) {
+        startScanner(gameFieldParams = gameFieldParams, numbersTargetsParams = numbersTargetsParams, statusBarHeight = statusBarHeight) {
+            solveSudoku()
+        }
+    }
+
+    private fun initOverlayPositions() {
+        val (startXPosition, startYPosition) = preferences.gameFieldPosition
+        serviceState.value = serviceState.value.copy(
+            initGameFieldSize = preferences.gameFieldSize,
+            gameFieldOverlayOffset = IntOffset(startXPosition, startYPosition),
+            numbersTargetOffset = IntOffset(x = 0, y = preferences.numbersTargetsYPosition)
+        )
+    }
+
+    override fun onStartCommand(intentOrNull: Intent?, flags: Int, startId: Int): Int {
+        intentOrNull?.getStringExtra(INTENT_COMMAND)?.let { command ->
+            when (command) {
+                INTENT_COMMAND_EXIT -> {
+                    serviceExit(overlayComponent = overlayComponent)
+                    return START_NOT_STICKY
+                }
+                INTENT_COMMAND_START -> {
+                    serviceState.value = serviceState.value.copy(overlayState = ServiceOverlayState.Default)
+                }
+                else -> Unit
+            }
+        }
+        val notification = buildNotification()
+        startForeground(SUDOKU_SOLVER_SERVICE_NOTIFICATION_ID, notification)
+        return START_STICKY
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        coroutineScope.cancel()
+    }
+
+    override fun onBind(intent: Intent?) = Binder()
 
     private fun startScanner(
         gameFieldParams: TargetsParams,
@@ -85,25 +131,42 @@ class SudokuSolverOverlayService : AccessibilityService() {
         statusBarHeight: Int,
         onResult: suspend () -> Unit
     ) {
+        serviceState.value = serviceState.value.copy(overlayState = ServiceOverlayState.MakingScreenshot)
+
+        preferences.gameFieldPosition = gameFieldParams.xPosition to gameFieldParams.yPosition
+        preferences.gameFieldSize = gameFieldParams.width
+        preferences.numbersTargetsYPosition = numbersTargetsParams.yPosition
+
         coroutineScope.launch {
-            sudokuSolverInteractor.setTargets(
+            val gameFieldTargets = sudokuSolverInteractor.createGameFieldTargets(
                 gameFieldParams = gameFieldParams,
+                statusBarHeight = statusBarHeight
+            )
+            val numbersTargets = sudokuSolverInteractor.createNumbersTargets(
                 numbersTargetsParams = numbersTargetsParams,
                 statusBarHeight = statusBarHeight
             )
             delay(50)
-            overlayComponent.hideOverlays()
+            serviceState.value = serviceState.value.copy(
+                gameFieldParams = gameFieldParams,
+                gameFieldTargets = gameFieldTargets,
+                numbersTargets = numbersTargets
+            )
             delay(50)
-
-            val intent = mediaProjectionIntent
-            if (intent != null && serviceHandler != null) {
-                ScreenshotMaker.makeScreenShot(
+            if (serviceHandler != null) {
+                screenshotMaker.makeScreenShot(
                     context = applicationContext,
-                    mediaProjectionIntent = intent,
                     serviceHandler = serviceHandler ?: throw Exception("serviceHandler must be not null!"),
                     onResult = { mat ->
                         coroutineScope.launch {
-                            sudokuSolverInteractor.scanScreenshot(context = this@SudokuSolverOverlayService, mat = mat)
+                            serviceState.value = serviceState.value.copy(overlayState = ServiceOverlayState.SudokuRecognizing)
+
+                            val sudokuNumbers = imageCVScanner.scanMat(
+                                context = this@SudokuSolverOverlayService,
+                                gameFieldMat = mat,
+                                gameFieldParams = gameFieldParams
+                            )
+                            serviceState.value = serviceState.value.copy(sudokuNumbers = sudokuNumbers)
                             mat.release()
                             onResult()
                         }
@@ -116,59 +179,30 @@ class SudokuSolverOverlayService : AccessibilityService() {
     private fun solveSudoku() {
         coroutineScope.launch {
             delay(10)
-            overlayComponent.hideOverlays()
+            serviceState.value = serviceState.value.copy(overlayState = ServiceOverlayState.SudokuSolving)
+
             withContext(Dispatchers.Default) {
-                val sudoku = sudokuSolverInteractor.solveSudoku()
+                val solvedSudoku = SudokuSolver.solve(sudoku = serviceState.value.sudokuNumbers)
+
+                val solvedSudokuCells = sudokuSolverInteractor.getCellsToClick(
+                    initialSudoku = serviceState.value.sudokuNumbers,
+                    solvedSudoku = solvedSudoku
+                )
+
                 sudokuSolverInteractor.startAutoClicker(
-                    sudoku = sudoku,
-                    clickOnTarget = ::makeClickOnPosition
-                ) {
-                    withContext(Dispatchers.Main) {
-                        overlayComponent.setSudokuNumbers(sudoku = listOf())
-                        overlayComponent.showOverlays()
+                    sudoku = solvedSudokuCells,
+                    gameFieldTargets = serviceState.value.gameFieldTargets,
+                    numbersTargets = serviceState.value.numbersTargets,
+                    clickOnTarget = { xPosition, yPosition ->
+                        SudokuSolverAutoClickerService.instance?.makeClickOnPosition(xPos = xPosition, yPos = yPosition)
+                    },
+                    onComplete = {
+                        serviceState.value = serviceState.value.copy(overlayState = ServiceOverlayState.Default, sudokuNumbers = listOf())
                     }
-                }
+                )
             }
         }
     }
-
-    private fun makeClickOnPosition(xPos: Int, yPos: Int) {
-        val path = Path()
-        path.moveTo(xPos.toFloat(), yPos.toFloat())
-        val gestureBuilder = GestureDescription.Builder()
-        gestureBuilder.addStroke(
-            GestureDescription.StrokeDescription(path, 0, 1)
-        )
-        dispatchGesture(gestureBuilder.build(), null, null)
-    }
-
-    override fun onStartCommand(intentOrNull: Intent?, flags: Int, startId: Int): Int {
-        intentOrNull?.let { intent ->
-            when (intent.getStringExtra(INTENT_COMMAND)) {
-                INTENT_COMMAND_EXIT -> {
-                    serviceExit(overlayComponent = overlayComponent)
-                    return START_NOT_STICKY
-                }
-                INTENT_COMMAND_START -> {
-                    overlayComponent.showOverlays()
-                }
-                else -> Unit
-            }
-        }
-
-        startForeground(SUDOKU_SOLVER_SERVICE_NOTIFICATION_ID, buildNotification())
-        return START_STICKY
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        coroutineScope.cancel()
-        sudokuSolverInteractor.clear()
-    }
-
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) = Unit
-
-    override fun onInterrupt() = Unit
 
     private fun buildNotification(): Notification {
         val channel = NotificationChannel(
@@ -177,16 +211,16 @@ class SudokuSolverOverlayService : AccessibilityService() {
             NotificationManager.IMPORTANCE_DEFAULT
         )
 
-        (getSystemService(NOTIFICATION_SERVICE) as NotificationManager)
-            .createNotificationChannel(channel)
+        (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(channel)
 
-        val exitIntent = Intent(applicationContext, ExitReceiver::class.java)
+        val exitIntent = Intent(applicationContext, ExitServiceReceiver::class.java)
         val exitPendingIntent = PendingIntent.getBroadcast(
             applicationContext, REQUEST_CODE_EXIT_COUNTDOWN, exitIntent, PendingIntent.FLAG_IMMUTABLE
         )
 
         return NotificationCompat.Builder(this, SUDOKU_SOLVER_SERVICE_NOTIFICATION_CHANNEL)
             .setContentTitle("Sudoku Solver")
+            .setSmallIcon(androidx.appcompat.R.drawable.abc_dialog_material_background)
             .setContentText("AutoClicker")
             .addAction(0, "Exit", exitPendingIntent)
             .build()

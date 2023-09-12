@@ -2,5 +2,6 @@
     <string name="app_name">SudokuSolver</string>
 
     <string name="accessibility_service_name" translatable="false">SudokuSolverService</string>
+    <string name="accessibility_service_id" translatable="false">com.zhukovartemvl.sudokusolver.service.SudokuSolverAutoClickerService</string>
 
 </resources>

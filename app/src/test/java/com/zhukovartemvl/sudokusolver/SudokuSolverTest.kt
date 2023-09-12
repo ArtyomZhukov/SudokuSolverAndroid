@@ -1,7 +1,7 @@
 package com.zhukovartemvl.sudokusolver
 
-import com.zhukovartemvl.sudokusolver.model.Cell
-import com.zhukovartemvl.sudokusolver.util.SudokuSolver
+import com.zhukovartemvl.sudokusolver.domain.model.Cell
+import com.zhukovartemvl.sudokusolver.tools.SudokuSolver
 import org.junit.Test
 
 class SudokuSolverTest {

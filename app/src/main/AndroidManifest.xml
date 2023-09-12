@@ -14,7 +14,7 @@
         android:theme="@style/Theme.SudokuSolver">
 
         <activity
-            android:name=".AppActivity"
+            android:name=".ui.AppActivity"
             android:exported="true"
             android:theme="@style/Theme.SudokuSolver">
             <intent-filter>
@@ -26,9 +26,11 @@
 
         <service
             android:name=".service.SudokuSolverOverlayService"
-            android:configChanges="screenSize|orientation"
+            android:foregroundServiceType="mediaProjection" />
+
+        <service
+            android:name=".service.SudokuSolverAutoClickerService"
             android:exported="true"
-            android:foregroundServiceType="mediaProjection"
             android:label="@string/accessibility_service_name"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
@@ -39,6 +41,9 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config" />
         </service>
+
+        <receiver android:name=".receiver.ExitServiceReceiver" />
+
     </application>
 
 </manifest>
