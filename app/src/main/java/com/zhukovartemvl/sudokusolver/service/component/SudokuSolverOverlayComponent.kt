@@ -270,7 +270,7 @@ class SudokuSolverOverlayComponent(
                 Box {
                     HappyCatView(modifier = Modifier.fillMaxSize())
                     val text = when (viewState.overlayState) {
-                        ServiceOverlayState.MakingScreenshot -> "makingScreenshot"
+                        ServiceOverlayState.MakingScreenshot -> "making screenshot"
                         ServiceOverlayState.SudokuRecognizing -> "recognizing"
                         ServiceOverlayState.SudokuSolving -> "solving"
                         ServiceOverlayState.SudokuClicking -> "clicking"
