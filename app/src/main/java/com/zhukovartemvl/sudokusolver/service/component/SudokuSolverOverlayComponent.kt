@@ -134,8 +134,7 @@ class SudokuSolverOverlayComponent(
                     },
                     onScanClick = {
                         val (gameFieldParams, numbersTargetsParams) = getParams()
-                        val statusBarHeight = getStatusBarHeight()
-                        onStartScannerClick(gameFieldParams, numbersTargetsParams, statusBarHeight)
+                        onStartScannerClick(gameFieldParams, numbersTargetsParams, getStatusBarHeight())
                     },
                     onHideClick = onHideClick,
                     onCloseClick = onStopServiceClick,

@@ -1,14 +1,13 @@
 package com.zhukovartemvl.sudokusolver.tools
 
-import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.graphics.PixelFormat
 import android.hardware.display.DisplayManager
 import android.media.Image
 import android.media.ImageReader
+import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
-import android.os.Handler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -18,17 +17,15 @@ import org.opencv.imgproc.Imgproc
 
 class ScreenshotMaker(private val mediaProjectionKeeper: MediaProjectionKeeper) {
 
-    @SuppressLint("WrongConstant")
     suspend fun makeScreenShot(
         context: Context,
-        serviceHandler: Handler,
         onResult: (Mat) -> Unit
     ) = withContext(Dispatchers.Main) {
         val mediaProjectionManager = context.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
 
         val mediaProjectionIntent = mediaProjectionKeeper.getMediaProjectionIntent()
 
-        val mediaProjection = mediaProjectionManager.getMediaProjection(Activity.RESULT_OK, mediaProjectionIntent)
+        val mediaProjection: MediaProjection = mediaProjectionManager.getMediaProjection(Activity.RESULT_OK, mediaProjectionIntent)
 
         val width = context.resources.displayMetrics.widthPixels
         val height = context.resources.displayMetrics.heightPixels
@@ -55,7 +52,7 @@ class ScreenshotMaker(private val mediaProjectionKeeper: MediaProjectionKeeper) 
                 mediaProjection.stop()
                 onResult(formattedImage)
             }
-        }, serviceHandler)
+        }, null)
     }
 
     private fun formatImage(image: Image): Mat {

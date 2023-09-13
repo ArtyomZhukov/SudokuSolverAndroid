@@ -52,16 +52,8 @@ class SudokuSolverOverlayService : Service() {
 
     private val sudokuSolverInteractor = SudokuSolverInteractor()
 
-    private var serviceLooper: Looper? = null
-    private var serviceHandler: Handler? = null
-
     override fun onCreate() {
         super.onCreate()
-        HandlerThread("Service", Process.THREAD_PRIORITY_BACKGROUND).apply {
-            start()
-            serviceLooper = looper
-            serviceHandler = Handler(looper)
-        }
         initOverlayPositions()
         overlayComponent = SudokuSolverOverlayComponent(
             context = this,
@@ -153,26 +145,23 @@ class SudokuSolverOverlayService : Service() {
                 numbersTargets = numbersTargets
             )
             delay(50)
-            if (serviceHandler != null) {
-                screenshotMaker.makeScreenShot(
-                    context = applicationContext,
-                    serviceHandler = serviceHandler ?: throw Exception("serviceHandler must be not null!"),
-                    onResult = { mat ->
-                        coroutineScope.launch {
-                            serviceState.value = serviceState.value.copy(overlayState = ServiceOverlayState.SudokuRecognizing)
+            screenshotMaker.makeScreenShot(
+                context = applicationContext,
+                onResult = { mat ->
+                    coroutineScope.launch {
+                        serviceState.value = serviceState.value.copy(overlayState = ServiceOverlayState.SudokuRecognizing)
 
-                            val sudokuNumbers = imageCVScanner.scanMat(
-                                context = this@SudokuSolverOverlayService,
-                                gameFieldMat = mat,
-                                gameFieldParams = gameFieldParams
-                            )
-                            serviceState.value = serviceState.value.copy(sudokuNumbers = sudokuNumbers)
-                            mat.release()
-                            onResult()
-                        }
+                        val sudokuNumbers = imageCVScanner.scanMat(
+                            context = this@SudokuSolverOverlayService,
+                            gameFieldMat = mat,
+                            gameFieldParams = gameFieldParams
+                        )
+                        serviceState.value = serviceState.value.copy(sudokuNumbers = sudokuNumbers)
+                        mat.release()
+                        onResult()
                     }
-                )
-            }
+                }
+            )
         }
     }
 
