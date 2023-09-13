@@ -1,4 +1,4 @@
-package com.zhukovartemvl.sudokusolver.receiver
+package com.zhukovartemvl.sudokusolver.service.receiver
 
 import android.content.BroadcastReceiver
 import android.content.Context

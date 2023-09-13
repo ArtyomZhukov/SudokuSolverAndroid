@@ -42,7 +42,7 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
-        <receiver android:name=".receiver.ExitServiceReceiver" />
+        <receiver android:name=".service.receiver.ExitServiceReceiver" />
 
     </application>
 

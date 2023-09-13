@@ -28,9 +28,8 @@ fun HappyCatView(modifier: Modifier = Modifier) {
             }
         }.build()
 
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Image(
-            modifier = modifier,
             painter = rememberAsyncImagePainter(
                 imageLoader = imageLoader,
                 model = ImageRequest.Builder(context)

@@ -74,7 +74,7 @@ class AppActivity : ComponentActivity() {
 
     private fun startSudokuSolverService(mediaProjectionIntent: Intent) {
         lifecycleScope.launch {
-            mediaProjectionKeeper.saveMediaProjectionIntent(intent =  mediaProjectionIntent)
+            mediaProjectionKeeper.saveMediaProjectionIntent(intent = mediaProjectionIntent)
             delay(100)
             val intent = Intent(this@AppActivity, SudokuSolverOverlayService::class.java).apply {
                 putExtra(INTENT_COMMAND, INTENT_COMMAND_START)

@@ -22,8 +22,8 @@ import com.zhukovartemvl.sudokusolver.SUDOKU_SOLVER_SERVICE_NOTIFICATION_ID
 import com.zhukovartemvl.sudokusolver.domain.SudokuSolverInteractor
 import com.zhukovartemvl.sudokusolver.domain.model.TargetsParams
 import com.zhukovartemvl.sudokusolver.preferences.SudokuPreferences
-import com.zhukovartemvl.sudokusolver.receiver.ExitServiceReceiver
 import com.zhukovartemvl.sudokusolver.service.component.SudokuSolverOverlayComponent
+import com.zhukovartemvl.sudokusolver.service.receiver.ExitServiceReceiver
 import com.zhukovartemvl.sudokusolver.tools.ImageCVScanner
 import com.zhukovartemvl.sudokusolver.tools.ScreenshotMaker
 import com.zhukovartemvl.sudokusolver.tools.SudokuSolver
@@ -48,7 +48,7 @@ class SudokuSolverOverlayService : Service() {
 
     private val serviceState: MutableStateFlow<SudokuSolverServiceState> = MutableStateFlow(SudokuSolverServiceState())
 
-    private lateinit var overlayComponent: SudokuSolverOverlayComponent
+    private var overlayComponent: SudokuSolverOverlayComponent? = null
 
     private val sudokuSolverInteractor = SudokuSolverInteractor()
 
@@ -70,7 +70,7 @@ class SudokuSolverOverlayService : Service() {
             onFeelingLuckyClick = ::feelingLucky,
             onSolveSudokuClick = ::solveSudoku,
             onStartScannerClick = ::startScanner,
-            onStopServiceClick = { serviceExit(overlayComponent = overlayComponent) },
+            onStopServiceClick = ::serviceExit,
             onHideClick = { serviceState.value = serviceState.value.copy(overlayState = ServiceOverlayState.FloatingButton) },
             onShowClick = { serviceState.value = serviceState.value.copy(overlayState = ServiceOverlayState.Default) },
             onFloatingWindowPositionChange = { offset -> serviceState.value = serviceState.value.copy(gameFieldOverlayOffset = offset) },
@@ -104,7 +104,7 @@ class SudokuSolverOverlayService : Service() {
         intentOrNull?.getStringExtra(INTENT_COMMAND)?.let { command ->
             when (command) {
                 INTENT_COMMAND_EXIT -> {
-                    serviceExit(overlayComponent = overlayComponent)
+                    serviceExit()
                     return START_NOT_STICKY
                 }
                 INTENT_COMMAND_START -> {
@@ -224,5 +224,10 @@ class SudokuSolverOverlayService : Service() {
             .setContentText("AutoClicker")
             .addAction(0, "Exit", exitPendingIntent)
             .build()
+    }
+
+    private fun serviceExit() {
+        overlayComponent?.onDestroy()
+        stopSelf()
     }
 }

@@ -3,7 +3,6 @@ package com.zhukovartemvl.sudokusolver.tools
 import android.content.Context
 import com.zhukovartemvl.sudokusolver.domain.model.Match
 import com.zhukovartemvl.sudokusolver.domain.model.Region
-import com.zhukovartemvl.sudokusolver.domain.model.SudokuNumber
 import com.zhukovartemvl.sudokusolver.domain.model.TargetsParams
 import org.opencv.core.Core
 import org.opencv.core.Mat
@@ -163,4 +162,16 @@ class ImageCVScanner {
         } finally {
             release()
         }
+
+    private enum class SudokuNumber(val fileName: String) {
+        One("number1.png"),
+        Two("number2.png"),
+        Three("number3.png"),
+        Four("number4.png"),
+        Five("number5.png"),
+        Six("number6.png"),
+        Seven("number7.png"),
+        Eight("number8.png"),
+        Nine("number9.png"),
+    }
 }

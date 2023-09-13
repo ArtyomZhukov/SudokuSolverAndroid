@@ -6,6 +6,7 @@ import android.graphics.PixelFormat
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.Text
@@ -14,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.unit.IntOffset
 import com.zhukovartemvl.sudokusolver.domain.model.TargetsParams
@@ -77,34 +79,17 @@ class SudokuSolverOverlayComponent(
                     ServiceOverlayState.MakingScreenshot -> {
                         windowManager.tryToRemoveView(gameFieldTargetOverlay.view)
                         windowManager.tryToRemoveView(numbersTargetsOverlay.view)
-                    }
-                    ServiceOverlayState.SudokuRecognizing -> {
                         windowManager.tryToAddView(catOverlay.view, catOverlay.params)
                     }
+                    ServiceOverlayState.SudokuRecognizing -> Unit
                     ServiceOverlayState.SudokuSolving -> {
                         windowManager.tryToRemoveView(gameFieldTargetOverlay.view)
                         windowManager.tryToRemoveView(numbersTargetsOverlay.view)
                         windowManager.tryToAddView(catOverlay.view, catOverlay.params)
                     }
-                    ServiceOverlayState.SudokuClicking -> {
-                        windowManager.tryToRemoveView(catOverlay.view)
-                    }
+                    ServiceOverlayState.SudokuClicking -> Unit
                 }
             }
-        }
-    }
-
-    private fun WindowManager.tryToAddView(view: View, layoutParams: ViewGroup.LayoutParams) {
-        try {
-            addView(view, layoutParams)
-        } catch (_: Exception) {
-        }
-    }
-
-    private fun WindowManager.tryToRemoveView(view: View) {
-        try {
-            removeView(view)
-        } catch (_: Exception) {
         }
     }
 
@@ -260,28 +245,33 @@ class SudokuSolverOverlayComponent(
     }
 
     private fun initCatOverlay(): OverlayViewHolder {
-        val xStartPos = context.resources.displayMetrics.widthPixels / 2 - 350
-        val yStartPos = context.resources.displayMetrics.heightPixels / 2 - 350
+        val gameFieldSize = state.value.initGameFieldSize
+        val startOffset = state.value.gameFieldOverlayOffset
+        val numbersTargetsYPosition = state.value.numbersTargetOffset.y
+
+        val size = numbersTargetsYPosition - startOffset.y - gameFieldSize
+
+        val xStartPos = (context.resources.displayMetrics.widthPixels / 2) - (size / 2)
+        val yStartPos = startOffset.y + gameFieldSize
 
         return OverlayViewHolder(
             params = WindowManager.LayoutParams(
-                700,
-                700,
+                size,
+                size,
                 xStartPos,
                 yStartPos,
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                // WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT
             ),
             context = context
         ).apply {
             view.setContent {
                 val viewState by state.collectAsState()
-
-                Box(modifier = Modifier.fillMaxSize()) {
+                Box {
                     HappyCatView(modifier = Modifier.fillMaxSize())
                     val text = when (viewState.overlayState) {
+                        ServiceOverlayState.MakingScreenshot -> "makingScreenshot"
                         ServiceOverlayState.SudokuRecognizing -> "recognizing"
                         ServiceOverlayState.SudokuSolving -> "solving"
                         ServiceOverlayState.SudokuClicking -> "clicking"
@@ -360,6 +350,11 @@ class SudokuSolverOverlayComponent(
     }
 
     fun onDestroy() {
+        gameFieldTargetOverlay.close()
+        numbersTargetsOverlay.close()
+        floatingButtonOverlay.close()
+        catOverlay.close()
+
         windowManager.tryToRemoveView(gameFieldTargetOverlay.view)
         windowManager.tryToRemoveView(numbersTargetsOverlay.view)
         windowManager.tryToRemoveView(floatingButtonOverlay.view)
@@ -367,5 +362,19 @@ class SudokuSolverOverlayComponent(
         gameFieldTargetOverlay.view.disposeComposition()
         numbersTargetsOverlay.view.disposeComposition()
         floatingButtonOverlay.view.disposeComposition()
+    }
+
+    private fun WindowManager.tryToAddView(view: View, layoutParams: ViewGroup.LayoutParams) {
+        try {
+            addView(view, layoutParams)
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun WindowManager.tryToRemoveView(view: View) {
+        try {
+            removeView(view)
+        } catch (_: Exception) {
+        }
     }
 }
