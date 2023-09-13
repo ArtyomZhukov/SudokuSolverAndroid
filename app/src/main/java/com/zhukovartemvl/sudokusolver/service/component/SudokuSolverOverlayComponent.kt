@@ -6,10 +6,14 @@ import android.graphics.PixelFormat
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material.Text
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.unit.IntOffset
 import com.zhukovartemvl.sudokusolver.domain.model.TargetsParams
@@ -18,6 +22,7 @@ import com.zhukovartemvl.sudokusolver.service.SudokuSolverServiceState
 import com.zhukovartemvl.sudokusolver.ui.service_views.FloatingButtonView
 import com.zhukovartemvl.sudokusolver.ui.service_views.FloatingTargetsView
 import com.zhukovartemvl.sudokusolver.ui.service_views.FloatingWindowView
+import com.zhukovartemvl.sudokusolver.ui.service_views.HappyCatView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
@@ -49,6 +54,7 @@ class SudokuSolverOverlayComponent(
     private val gameFieldTargetOverlay: OverlayViewHolder = initClickTargetOverlay()
     private val numbersTargetsOverlay: OverlayViewHolder = initNumbersTargetsOverlay()
     private val floatingButtonOverlay: OverlayViewHolder = initFloatingButtonOverlay()
+    private val catOverlay: OverlayViewHolder = initCatOverlay()
 
     init {
         coroutineScope.launch {
@@ -60,10 +66,12 @@ class SudokuSolverOverlayComponent(
                         windowManager.tryToAddView(gameFieldTargetOverlay.view, gameFieldTargetOverlay.params)
                         windowManager.tryToAddView(numbersTargetsOverlay.view, numbersTargetsOverlay.params)
                         windowManager.tryToRemoveView(floatingButtonOverlay.view)
+                        windowManager.tryToRemoveView(catOverlay.view)
                     }
                     ServiceOverlayState.FloatingButton -> {
                         windowManager.tryToRemoveView(gameFieldTargetOverlay.view)
                         windowManager.tryToRemoveView(numbersTargetsOverlay.view)
+                        windowManager.tryToRemoveView(catOverlay.view)
                         windowManager.tryToAddView(floatingButtonOverlay.view, floatingButtonOverlay.params)
                     }
                     ServiceOverlayState.MakingScreenshot -> {
@@ -71,14 +79,15 @@ class SudokuSolverOverlayComponent(
                         windowManager.tryToRemoveView(numbersTargetsOverlay.view)
                     }
                     ServiceOverlayState.SudokuRecognizing -> {
-
+                        windowManager.tryToAddView(catOverlay.view, catOverlay.params)
                     }
                     ServiceOverlayState.SudokuSolving -> {
                         windowManager.tryToRemoveView(gameFieldTargetOverlay.view)
                         windowManager.tryToRemoveView(numbersTargetsOverlay.view)
+                        windowManager.tryToAddView(catOverlay.view, catOverlay.params)
                     }
                     ServiceOverlayState.SudokuClicking -> {
-
+                        windowManager.tryToRemoveView(catOverlay.view)
                     }
                 }
             }
@@ -246,6 +255,43 @@ class SudokuSolverOverlayComponent(
                         change.consume()
                     }
                 )
+            }
+        }
+    }
+
+    private fun initCatOverlay(): OverlayViewHolder {
+        val xStartPos = context.resources.displayMetrics.widthPixels / 2 - 350
+        val yStartPos = context.resources.displayMetrics.heightPixels / 2 - 350
+
+        return OverlayViewHolder(
+            params = WindowManager.LayoutParams(
+                700,
+                700,
+                xStartPos,
+                yStartPos,
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                // WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                PixelFormat.TRANSLUCENT
+            ),
+            context = context
+        ).apply {
+            view.setContent {
+                val viewState by state.collectAsState()
+
+                Box(modifier = Modifier.fillMaxSize()) {
+                    HappyCatView(modifier = Modifier.fillMaxSize())
+                    val text = when (viewState.overlayState) {
+                        ServiceOverlayState.SudokuRecognizing -> "recognizing"
+                        ServiceOverlayState.SudokuSolving -> "solving"
+                        ServiceOverlayState.SudokuClicking -> "clicking"
+                        else -> ""
+                    }
+                    Text(
+                        modifier = Modifier.align(alignment = Alignment.BottomCenter),
+                        text = text
+                    )
+                }
             }
         }
     }

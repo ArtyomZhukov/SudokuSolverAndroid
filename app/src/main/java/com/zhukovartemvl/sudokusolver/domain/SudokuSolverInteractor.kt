@@ -66,16 +66,16 @@ class SudokuSolverInteractor {
             .groupBy { it.number }
             .forEach { (number, cells) ->
                 if (number != currentNumber) {
-                    delay(2)
+                    delay(5)
                     val target = numbersTargets[number - 1]
                     currentNumber = number
                     clickOnTarget(target.xPosition, target.yPosition)
-                    delay(2)
+                    delay(5)
                 }
                 cells.forEach { cell ->
                     val target = gameFieldTargets[cell.index]
                     clickOnTarget(target.xPosition, target.yPosition)
-                    delay(2)
+                    delay(5)
                 }
             }
         onComplete()

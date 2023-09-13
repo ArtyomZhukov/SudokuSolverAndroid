@@ -6,6 +6,9 @@ object SudokuSolver {
     private var grid = listOf<GridCell>()
 
     fun solve(sudoku: List<Int>): List<Int> {
+        if (sudoku.isEmpty()) {
+            return emptyList()
+        }
         // generates the entire Sudoku grid of GridCells
         grid = (0..2).asSequence().flatMap { parentX -> (0..2).asSequence().map { parentY -> parentX to parentY } }
             .flatMap { (parentX, parentY) ->

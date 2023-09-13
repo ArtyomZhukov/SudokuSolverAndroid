@@ -183,12 +183,12 @@ class SudokuSolverOverlayService : Service() {
 
             withContext(Dispatchers.Default) {
                 val solvedSudoku = SudokuSolver.solve(sudoku = serviceState.value.sudokuNumbers)
-
+                serviceState.value = serviceState.value.copy(overlayState = ServiceOverlayState.SudokuClicking)
+                delay(100)
                 val solvedSudokuCells = sudokuSolverInteractor.getCellsToClick(
                     initialSudoku = serviceState.value.sudokuNumbers,
                     solvedSudoku = solvedSudoku
                 )
-
                 sudokuSolverInteractor.startAutoClicker(
                     sudoku = solvedSudokuCells,
                     gameFieldTargets = serviceState.value.gameFieldTargets,
